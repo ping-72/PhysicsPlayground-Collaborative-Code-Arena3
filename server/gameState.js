@@ -37,6 +37,11 @@ const BLACKLISTED_TERMS = [
   "Worker",
   "SharedWorker",
   "ServiceWorker",
+  "console",
+  "alert",
+  "prompt",
+  "confirm",
+  "open",
 ];
 
 // Update player position
