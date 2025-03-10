@@ -1,186 +1,201 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import io from "socket.io-client";
-import "./Lobby.css";
-
-const ENDPOINT = "http://localhost:5000";
-
-// Available player colors
-const PLAYER_COLORS = [
-  { name: "Red", value: "#FF5733" },
-  { name: "Green", value: "#33FF57" },
-  { name: "Blue", value: "#3357FF" },
-  { name: "Yellow", value: "#F3FF33" },
-  { name: "Purple", value: "#FF33F3" },
-  { name: "Cyan", value: "#33FFF3" },
-  { name: "Magenta", value: "#F333FF" },
-  { name: "Orange", value: "#FFA233" },
-];
-
-function Lobby() {
-  const [socket, setSocket] = useState(null);
-  const [rooms, setRooms] = useState({});
-  const [newRoomName, setNewRoomName] = useState("");
-  const [playerName, setPlayerName] = useState("");
-  const [playerColor, setPlayerColor] = useState(PLAYER_COLORS[0].value);
-  const [connected, setConnected] = useState(false);
-  const navigate = useNavigate();
-
-  // Initialize socket connection
-  useEffect(() => {
-    const newSocket = io(ENDPOINT);
-
-    newSocket.on("connect", () => {
-      console.log("Connected to server");
-      setConnected(true);
-      newSocket.emit("getRooms");
-    });
-
-    newSocket.on("roomsList", (roomsList) => {
-      setRooms(roomsList);
-    });
-
-    newSocket.on("disconnect", () => {
-      console.log("Disconnected from server");
-      setConnected(false);
-    });
-
-    setSocket(newSocket);
-
-    // Cleanup on unmount
-    return () => {
-      newSocket.disconnect();
-    };
-  }, []);
-
-  // Handle room creation
-  const handleCreateRoom = (e) => {
-    e.preventDefault();
-    if (newRoomName.trim() && socket) {
-      socket.emit("createRoom", newRoomName);
-      setNewRoomName("");
-    }
-  };
-
-  // Handle joining a room
-  const handleJoinRoom = (roomId) => {
-    if (!playerName.trim()) {
-      alert("Please enter your name before joining a room");
-      return;
-    }
-
-    if (socket) {
-      // Store player name and color in localStorage for persistence
-      localStorage.setItem("playerName", playerName);
-      localStorage.setItem("playerColor", playerColor);
-
-      // Join the room
-      socket.emit("joinRoom", { roomId, playerName, playerColor });
-
-      // Navigate to room
-      navigate(`/room/${roomId}`);
-    }
-  };
-
-  // Refresh rooms list
-  const refreshRooms = () => {
-    if (socket) {
-      socket.emit("getRooms");
-    }
-  };
-
-  // Load stored player name and color
-  useEffect(() => {
-    const storedName = localStorage.getItem("playerName");
-    if (storedName) {
-      setPlayerName(storedName);
-    }
-
-    const storedColor = localStorage.getItem("playerColor");
-    if (storedColor) {
-      setPlayerColor(storedColor);
-    }
-  }, []);
-
-  return (
-    <div className="lobby-container">
-      <h1>Physics Game Lobby</h1>
-
-      <div className="player-info">
-        <div className="player-name-input">
-          <label htmlFor="playerName">Your Name:</label>
-          <input
-            type="text"
-            id="playerName"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Enter your name"
-          />
-        </div>
-
-        <div className="player-color-select">
-          <label htmlFor="playerColor">Your Color:</label>
-          <div className="color-options">
-            {PLAYER_COLORS.map((color) => (
-              <div
-                key={color.value}
-                className={`color-option ${
-                  playerColor === color.value ? "selected" : ""
-                }`}
-                style={{ backgroundColor: color.value }}
-                onClick={() => setPlayerColor(color.value)}
-                title={color.name}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="create-room">
-        <h2>Create a New Room</h2>
-        <form onSubmit={handleCreateRoom}>
-          <input
-            type="text"
-            value={newRoomName}
-            onChange={(e) => setNewRoomName(e.target.value)}
-            placeholder="Room name"
-          />
-          <button type="submit">Create Room</button>
-        </form>
-      </div>
-
-      <div className="rooms-list">
-        <div className="rooms-header">
-          <h2>Available Rooms</h2>
-          <button onClick={refreshRooms} className="refresh-button">
-            Refresh
-          </button>
-        </div>
-
-        {Object.keys(rooms).length === 0 ? (
-          <p>No rooms available. Create one to get started!</p>
-        ) : (
-          <ul>
-            {Object.values(rooms).map((room) => (
-              <li key={room.id} className="room-item">
-                <div className="room-info">
-                  <h3>{room.name}</h3>
-                  <p>{Object.keys(room.players).length} players</p>
-                </div>
-                <button onClick={() => handleJoinRoom(room.id)}>
-                  Join Room
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="connection-status">
-        Status: {connected ? "Connected" : "Disconnected"}
-      </div>
-    </div>
-  );
+.lobby-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
 }
 
-export default Lobby;
+.lobby-container h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #333;
+}
+
+.player-info {
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.player-name-input {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.player-name-input label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.player-name-input input {
+  padding: 8px;
+  width: 250px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.player-color-select {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.player-color-select label {
+  font-weight: bold;
+}
+
+.color-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.color-option {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+}
+
+.color-option.selected {
+  border: 2px solid #000;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+.create-room {
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #e6f7ff;
+  border-radius: 5px;
+}
+
+.create-room h2 {
+  margin-top: 0;
+  color: #0066cc;
+}
+
+.create-room form {
+  display: flex;
+  gap: 10px;
+}
+
+.create-room input {
+  flex-grow: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.create-room button {
+  padding: 8px 16px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.create-room button:hover {
+  background-color: #0052a3;
+}
+
+.rooms-list {
+  background-color: #f9f9f9;
+  border-radius: 5px;
+  padding: 15px;
+}
+
+.rooms-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.rooms-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.refresh-button {
+  padding: 5px 10px;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.refresh-button:hover {
+  background-color: #e0e0e0;
+}
+
+.rooms-list ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.room-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  margin-bottom: 10px;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.room-info h3 {
+  margin: 0 0 5px 0;
+  color: #333;
+}
+
+.room-info p {
+  margin: 0;
+  color: #666;
+}
+
+.room-item button {
+  padding: 8px 16px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.room-item button:hover {
+  background-color: #3d8b40;
+}
+
+.connection-status {
+  margin-top: 20px;
+  text-align: center;
+  font-style: italic;
+  color: #666;
+}
+
+/* Responsive styling */
+@media (max-width: 600px) {
+  .player-name-input,
+  .create-room form {
+    flex-direction: column;
+  }
+
+  .color-options {
+    justify-content: center;
+  }
+}
